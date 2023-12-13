@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.ResponseCompression;
+using TicTacToe.Server.Hubs;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -6,6 +7,14 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllersWithViews();
 builder.Services.AddRazorPages();
+
+builder.Services.AddResponseCompression(opts =>
+{
+    opts.MimeTypes = ResponseCompressionDefaults
+    .MimeTypes
+    .Concat(new[] { "application/octet-stream" });
+});
+builder.Services.AddSignalR();
 
 var app = builder.Build();
 
@@ -24,6 +33,8 @@ app.UseStaticFiles();
 
 app.UseRouting();
 
+app.UseResponseCompression();
+app.MapHub<TttHub>("/ttt");
 
 app.MapRazorPages();
 app.MapControllers();

@@ -1,9 +1,147 @@
 ﻿@page "/"
+@using Microsoft.AspNetCore.SignalR.Client
+@inject NavigationManager Navigation
+@implements IAsyncDisposable
 
-<PageTitle>Index</PageTitle>
+<PageTitle>Home</PageTitle>
 
-<h1>Hello, world!</h1>
+<div class="register-form" hidden="@(IsInGame)">
+    <label>
+        Room number:
+        <input @bind="roomNumber" />
+    </label>
+    <label>
+        Password:
+        <input type="password" @bind="password" />
+    </label>
+    <label>
+        Username:
+        <input @bind="username" />
+    </label>
+    <button @onclick="Register" hidden="@(!IsConnected)">Register</button>
+</div>
+<div hidden="@(IsInGame)">
+    <label>
+        Password:
+        <input type="password" @bind="password" />
+    </label>
+    <label>
+        Username:
+        <input @bind="username" />
+    </label>
+    <button @onclick="CreateRoom" hidden="@(!IsConnected)">Create room</button>
+</div>
 
-Welcome to your new app.
+<div hidden="@(IsInGame)">
+    <h2>RoomId: @(roomNumber)</h2>
+    <h2>Password: @(password)</h2>
+</div>
 
-<SurveyPrompt Title="How is Blazor working for you?" />
+<div hidden="@(!IsInGame)">
+    <h2>TABLE FOR GAME HERE</h2>
+</div>
+
+@* <div hidden="@(GameStatus)">
+   @*  <h2>GameStatusHere</h2> 
+</div> *@
+
+<div>
+    @* todo reset game button *@
+</div>
+
+
+
+
+<div hidden="@(!IsFailed)">
+    <h1>Error while connecting to room</h1>
+</div>
+
+<hr>
+
+<ul id="messagesList">
+    @foreach (var message in messages)
+    {
+        <li>@message</li>
+    }
+</ul>
+
+
+@code {
+    private HubConnection? hubConnection;
+    private List<string> messages = new List<string>();
+    private string? roomNumber;
+    private string? password;
+    private string? username;
+
+    protected override async Task OnInitializedAsync()
+    {
+        hubConnection = new HubConnectionBuilder()
+            .WithUrl(Navigation.ToAbsoluteUri("/ttt"))
+            .Build();
+
+        hubConnection.On<string, bool>("RegisterCallback", (groupId, isAuthenticated) =>
+        {
+            if(isAuthenticated)
+            {
+                IsFailed = false;
+                IsInGame = true;
+                roomNumber = groupId;
+            }
+            else
+            {
+                IsInGame = false;
+                IsFailed = true;
+            }
+            InvokeAsync(StateHasChanged);
+        });
+
+        hubConnection.On<string, bool>("CreateRoomCallback", (groupId, isAuthenticated) =>
+        {
+            if (isAuthenticated)
+            {
+                IsFailed = false;
+                IsInGame = true;
+                roomNumber = groupId;
+            }
+            else
+            {
+                IsInGame = false;
+                IsFailed = true;
+            }
+            InvokeAsync(StateHasChanged);
+        });
+
+        await hubConnection.StartAsync();
+    }
+
+    private async Task CreateRoom()
+    {
+        if (hubConnection is not null)
+        {
+            await hubConnection.SendAsync("CreateRoom", password, username);
+        }
+    }
+
+    private async Task Register()
+    {
+        if (hubConnection is not null)
+        {
+            await hubConnection.SendAsync("Register", roomNumber, password, username);
+            // todo update IsFailed to false
+        }
+    }
+
+    public bool IsConnected =>
+        hubConnection?.State == HubConnectionState.Connected;
+
+    public bool IsInGame { get; set; } 
+    public bool IsFailed { get; set; }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (hubConnection is not null)
+        {
+            await hubConnection.DisposeAsync();
+        }
+    }
+}
