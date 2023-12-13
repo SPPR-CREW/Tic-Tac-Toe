@@ -39,9 +39,14 @@ namespace TicTacToe.Server.Hubs
                 await Groups.RemoveFromGroupAsync(user.ConnectionId, room.RoomNumber);
 
                 _roomStorage.RemoveRoom(room.RoomNumber);
-
             }
+        }
 
+        public async Task TupButton(string roomNumber, int i, int j) {
+            var room = _roomStorage.GetRoom(roomNumber);
+            var receiver = room.firstUser.ConnectionId == Context.ConnectionId ? room.secondUser : room.firstUser;
+
+            await Clients.Client(receiver.ConnectionId).TapCallback(i, j);
         }
 
         public async Task Register(string roomNumber, string password, string username)
@@ -58,7 +63,9 @@ namespace TicTacToe.Server.Hubs
                             var user = new User { Username = username, ConnectionId = Context.ConnectionId, SignVariant = SignVariant.Circle };
                             room.secondUser = user;
                             await Groups.AddToGroupAsync(Context.ConnectionId, roomNumber);
-                            await Clients.Group(roomNumber).RegisterCallback(new Response { Success = true, Message = $"User {username} successfully joined room.", RoomNumber = roomNumber });
+                            await Clients.Group(roomNumber).RegisterCallback(new Response { Success = true, Message = $"The step of {room?.firstUser?.Username} user.", RoomNumber = roomNumber });
+                            await Clients.Client(room?.firstUser?.ConnectionId).UpdateSign(new SignResponse { Sign = "X" });
+                            await Clients.Client(room?.secondUser?.ConnectionId).UpdateSign(new SignResponse { Sign = "O" });
                         }
                         else
                         {

@@ -14,5 +14,7 @@ namespace TicTacToe.Shared
         public Task CreateRoomCallback(Response response);
 
         public Task DisconnectCallback(Response response);
+        public Task UpdateSign(SignResponse response);
+        public Task TapCallback(int i, int j);
     }
 }

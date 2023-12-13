@@ -1,8 +1,10 @@
 ﻿@page "/"
+@using BlazorGames.Models.TicTacToe
 @using Microsoft.AspNetCore.SignalR.Client
 @using TicTacToe.Shared.Data
 @inject NavigationManager Navigation
 @implements IAsyncDisposable
+@inject IJSRuntime _jsRuntime;
 
 <PageTitle>Home</PageTitle>
 
@@ -10,35 +12,39 @@
     <h1>@(responseMessage)</h1>
 </div>
 
-<div class="register-form" hidden="@(IsInGame)">
-    <label>
-        Room number:
-        <input @bind="roomNumber" />
-    </label>
-    <label>
-        Password:
-        <input type="password" @bind="password" />
-    </label>
-    <label>
-        Username:
-        <input @bind="username" />
-    </label>
-    <button @onclick="Register" hidden="@(!IsConnected)">Register</button>
-</div>
+<section>
+    <div class="register-form" hidden="@(IsInGame)">
+        <label>
+            Room number:
+            <input @bind="roomNumber" />
+        </label>
+        <label>
+            Password:
+            <input type="password" @bind="password" />
+        </label>
+        <label>
+            Username:
+            <input @bind="username" />
+        </label>
+        <button @onclick="Register" hidden="@(!IsConnected)">Register</button>
+    </div>
+</section>
 
 <hr>
 
-<div hidden="@(IsInGame)">
-    <label>
-        Password:
-        <input type="password" @bind="password" />
-    </label>
-    <label>
-        Username:
-        <input @bind="username" />
-    </label>
-    <button @onclick="CreateRoom" hidden="@(!IsConnected)">Create room</button>
-</div>
+<section>
+    <div hidden="@(IsInGame)">
+        <label>
+            Password:
+            <input type="password" @bind="password" />
+        </label>
+        <label>
+            Username:
+            <input @bind="username" />
+        </label>
+        <button @onclick="CreateRoom" hidden="@(!IsConnected)">Create room</button>
+    </div>
+</section>
 
 <div hidden="@(!IsInGame)">
     <h2>RoomId: @(roomNumber)</h2>
@@ -46,11 +52,24 @@
 </div>
 
 <div hidden="@(!IsInGame)">
+    <h2>Your username: @(username)</h2>
+</div>
+
+<div hidden="@(!IsInGame)">
     <h2>TABLE FOR GAME HERE</h2>
+
+    @for (int i = 0; i < 10; i++)
+    {
+        @for (int j = 0; j < 10; j++)
+        {
+            <button @onclick="@(() => TapButton(i, j))">@(dashboard[i][j])</button>
+        }
+        <br>
+    }
 </div>
 
 @* <div hidden="@(GameStatus)">
-   @*  <h2>GameStatusHere</h2> 
+   @*  <h2>GameStatusHere</h2>
 </div> *@
 
 <div>
@@ -59,12 +78,6 @@
 
 <hr>
 
-<ul id="messagesList">
-    @foreach (var message in messages)
-    {
-        <li>@message</li>
-    }
-</ul>
 
 
 @code {
@@ -74,6 +87,9 @@
     private string? password;
     private string? username;
     private string? responseMessage;
+    private List<List<String>> dashboard = new List<List<string>>();
+    private string? sign;
+    private bool myOrder = false;
 
     protected override async Task OnInitializedAsync()
     {
@@ -83,7 +99,7 @@
 
         hubConnection.On<Response>("RegisterCallback", (response) =>
         {
-            if(response.Success is true)
+            if (response.Success is true)
             {
                 IsFailed = false;
                 IsInGame = true;
@@ -132,6 +148,28 @@
            InvokeAsync(StateHasChanged);
        });
 
+        hubConnection.On<SignResponse>("UpdateSign", (response) =>
+        {
+            this.sign = response.Sign;
+            if (this.sign == "X")
+            {
+                this.myOrder = true;
+                this.responseMessage = $"It is your step";
+            }
+            responseMessage = $"Your sign is {response.Sign}";
+            InvokeAsync(StateHasChanged);
+        });
+        hubConnection.On<int, int>("TapCallback", this.TapCallback);
+        for (int i = 0; i < 10; i++)
+        {
+            var arr = new List<String>();
+            for (int j = 0; j < 10; j++)
+            {
+                arr.Add("_");
+            }
+            this.dashboard.Add(arr);
+        }
+
         await hubConnection.StartAsync();
     }
 
@@ -140,6 +178,7 @@
         if (hubConnection is not null)
         {
             await hubConnection.SendAsync("CreateRoom", password, username);
+            this.username = username;
         }
     }
 
@@ -149,15 +188,47 @@
         {
             await hubConnection.SendAsync("Register", roomNumber, password, username);
             // todo update IsFailed to false
+            this.username = username;
         }
     }
 
-   
+    private async Task TapCallback(int i, int j)
+    {
+        this.myOrder = true;
+        this.responseMessage = "It's time for your step.";
+        this.dashboard[i][j] = this.sign == "O" ? "X" : "O";
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task TapButton(int i, int j)
+    {
+        string value = this.dashboard[i][j];
+        if (this.myOrder)
+        {
+            if (value == "_")
+            {
+                await hubConnection.SendAsync("TapButton", roomNumber, i, j);
+                this.dashboard[i][j] = this.sign;
+                await InvokeAsync(StateHasChanged);
+            }
+            else
+            {
+                this.responseMessage = $"Can't tap here. {this.username}, try again";
+            }  
+        }
+        else
+        {
+            this.responseMessage = $"It's not your order to step";   
+        }
+        
+    }
+
+
 
     public bool IsConnected =>
         hubConnection?.State == HubConnectionState.Connected;
 
-    public bool IsInGame { get; set; } 
+    public bool IsInGame { get; set; }
     public bool IsFailed { get; set; }
 
     public async ValueTask DisposeAsync()
