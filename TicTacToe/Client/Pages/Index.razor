@@ -95,13 +95,13 @@
             InvokeAsync(StateHasChanged);
         });
 
-        hubConnection.On<string, bool>("CreateRoomCallback", (groupId, isAuthenticated) =>
+        hubConnection.On<string, bool>("CreateRoomCallback", (roomNumber, isAuthenticated) =>
         {
             if (isAuthenticated)
             {
                 IsFailed = false;
                 IsInGame = true;
-                roomNumber = groupId;
+                this.roomNumber = roomNumber;
             }
             else
             {
