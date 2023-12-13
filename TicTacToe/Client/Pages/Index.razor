@@ -1,9 +1,14 @@
 ﻿@page "/"
 @using Microsoft.AspNetCore.SignalR.Client
+@using TicTacToe.Shared.Data
 @inject NavigationManager Navigation
 @implements IAsyncDisposable
 
 <PageTitle>Home</PageTitle>
+
+<div>
+    <h1>@(responseMessage)</h1>
+</div>
 
 <div class="register-form" hidden="@(IsInGame)">
     <label>
@@ -20,6 +25,9 @@
     </label>
     <button @onclick="Register" hidden="@(!IsConnected)">Register</button>
 </div>
+
+<hr>
+
 <div hidden="@(IsInGame)">
     <label>
         Password:
@@ -32,7 +40,7 @@
     <button @onclick="CreateRoom" hidden="@(!IsConnected)">Create room</button>
 </div>
 
-<div hidden="@(IsInGame)">
+<div hidden="@(!IsInGame)">
     <h2>RoomId: @(roomNumber)</h2>
     <h2>Password: @(password)</h2>
 </div>
@@ -47,13 +55,6 @@
 
 <div>
     @* todo reset game button *@
-</div>
-
-
-
-
-<div hidden="@(!IsFailed)">
-    <h1>Error while connecting to room</h1>
 </div>
 
 <hr>
@@ -72,6 +73,7 @@
     private string? roomNumber;
     private string? password;
     private string? username;
+    private string? responseMessage;
 
     protected override async Task OnInitializedAsync()
     {
@@ -79,35 +81,37 @@
             .WithUrl(Navigation.ToAbsoluteUri("/ttt"))
             .Build();
 
-        hubConnection.On<string, bool>("RegisterCallback", (groupId, isAuthenticated) =>
+        hubConnection.On<Response>("RegisterCallback", (response) =>
         {
-            if(isAuthenticated)
+            if(response.Success is true)
             {
                 IsFailed = false;
                 IsInGame = true;
-                roomNumber = groupId;
+                roomNumber = response.RoomNumber;
             }
             else
             {
                 IsInGame = false;
                 IsFailed = true;
             }
+            responseMessage = response.Message;
             InvokeAsync(StateHasChanged);
         });
 
-        hubConnection.On<string, bool>("CreateRoomCallback", (roomNumber, isAuthenticated) =>
+        hubConnection.On<Response>("CreateRoomCallback", (response) =>
         {
-            if (isAuthenticated)
+            if (response.Success is true)
             {
                 IsFailed = false;
                 IsInGame = true;
-                this.roomNumber = roomNumber;
+                this.roomNumber = response.RoomNumber;
             }
             else
             {
                 IsInGame = false;
                 IsFailed = true;
             }
+            responseMessage = response.Message;
             InvokeAsync(StateHasChanged);
         });
 

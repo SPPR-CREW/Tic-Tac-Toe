@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.ResponseCompression;
 using TicTacToe.Server.Hubs;
+using TicTacToe.Server.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -15,6 +16,7 @@ builder.Services.AddResponseCompression(opts =>
     .Concat(new[] { "application/octet-stream" });
 });
 builder.Services.AddSignalR();
+builder.Services.AddSingleton<MemoryRoomStorage>();
 
 var app = builder.Build();
 
