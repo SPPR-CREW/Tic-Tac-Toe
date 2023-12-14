@@ -115,6 +115,23 @@
             InvokeAsync(StateHasChanged);
         });
 
+        hubConnection.On<Response>("DisconnectCallback", (response) =>
+       {
+           if (response.Success is true)
+           {
+               IsFailed = false;
+               IsInGame = true;
+               this.roomNumber = response.RoomNumber;
+           }
+           else
+           {
+               IsInGame = false;
+               IsFailed = true;
+           }
+           responseMessage = response.Message;
+           InvokeAsync(StateHasChanged);
+       });
+
         await hubConnection.StartAsync();
     }
 
@@ -134,6 +151,8 @@
             // todo update IsFailed to false
         }
     }
+
+   
 
     public bool IsConnected =>
         hubConnection?.State == HubConnectionState.Connected;

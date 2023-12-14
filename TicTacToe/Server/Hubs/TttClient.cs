@@ -12,5 +12,7 @@ namespace TicTacToe.Shared
         public Task RegisterCallback(Response response);
 
         public Task CreateRoomCallback(Response response);
+
+        public Task DisconnectCallback(Response response);
     }
 }

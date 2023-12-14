@@ -22,5 +22,16 @@ namespace TicTacToe.Server.Services
         public bool HasRoom(string roomNumber) { 
             return roomNumberToRoom.ContainsKey(roomNumber);
         }
+
+        public Room? GetRoomByConnectionIdOfUser(string connectionId) { 
+            foreach (var room in  roomNumberToRoom.Values)
+            {
+                if (room?.firstUser?.ConnectionId == connectionId || room?.secondUser?.ConnectionId == connectionId)
+                {
+                    return room;
+                }
+            }
+            return null;
+        }
     }
 }
