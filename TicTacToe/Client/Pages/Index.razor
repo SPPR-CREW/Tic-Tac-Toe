@@ -339,6 +339,23 @@
                 }
             }
         }
+        for (int col = 0; col < 10; col++)
+        {
+            for (int chainStartsWith = 0; chainStartsWith < 5; chainStartsWith++)
+            {
+                var possibleWinnerChain = new List<string> { this.dashboard[chainStartsWith][col], this.dashboard[chainStartsWith + 1][col], this.dashboard[chainStartsWith + 2][col], this.dashboard[chainStartsWith + 3][col], this.dashboard[chainStartsWith + 4][col] };
+
+                if (possibleWinnerChain.SequenceEqual(winnerX))
+                {
+                    return GameState.firstWin;
+                }
+                else if (possibleWinnerChain.SequenceEqual(winnerO))
+                {
+                    return GameState.secondWin;
+                }
+            }    
+        }
+
         // check left to right diagonal
         // check right to left diagonal
         return GameState.in_process;

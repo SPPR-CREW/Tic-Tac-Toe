@@ -57,6 +57,9 @@ namespace TicTacToe.Server.Hubs
             var winnerName = state == GameState.firstWin ? room.firstUser.Username : room.secondUser.Username;
             await Clients.Client(room.firstUser.ConnectionId).WinnerCallback(new WinnerResponse { winnerName = winnerName });
             await Clients.Client(room.secondUser.ConnectionId).WinnerCallback(new WinnerResponse { winnerName = winnerName });
+            await Groups.RemoveFromGroupAsync(room.firstUser.ConnectionId, room.RoomNumber);
+            await Groups.RemoveFromGroupAsync(room.secondUser.ConnectionId, room.RoomNumber);
+            _roomStorage.RemoveRoom(room.RoomNumber);
         }
 
         public async Task Register(string roomNumber, string password, string username)
