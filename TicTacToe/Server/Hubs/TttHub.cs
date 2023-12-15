@@ -3,6 +3,7 @@ using TicTacToe.Server.Entities;
 using TicTacToe.Server.Services;
 using TicTacToe.Shared;
 using TicTacToe.Shared.Data;
+using TicTacToe.Client.Models.Enums;
 
 namespace TicTacToe.Server.Hubs
 {
@@ -42,11 +43,20 @@ namespace TicTacToe.Server.Hubs
             }
         }
 
-        public async Task TupButton(string roomNumber, int i, int j) {
+        public async Task TapButton(string roomNumber, int i, int j) {
             var room = _roomStorage.GetRoom(roomNumber);
             var receiver = room.firstUser.ConnectionId == Context.ConnectionId ? room.secondUser : room.firstUser;
-
+            Console.WriteLine($"request conn id {Context.ConnectionId}");
+            Console.WriteLine($"room person conn id {room.firstUser.ConnectionId} {room.secondUser.ConnectionId}");
+            Console.WriteLine($"receiver conn id {receiver.ConnectionId}");
             await Clients.Client(receiver.ConnectionId).TapCallback(i, j);
+        }
+
+        public async Task WinnerEndpoint(GameState state, string roomNumber) {
+            var room = _roomStorage.GetRoom(roomNumber);
+            var winnerName = state == GameState.firstWin ? room.firstUser.Username : room.secondUser.Username;
+            await Clients.Client(room.firstUser.ConnectionId).WinnerCallback(new WinnerResponse { winnerName = winnerName });
+            await Clients.Client(room.secondUser.ConnectionId).WinnerCallback(new WinnerResponse { winnerName = winnerName });
         }
 
         public async Task Register(string roomNumber, string password, string username)

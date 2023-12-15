@@ -2,6 +2,7 @@
 @using BlazorGames.Models.TicTacToe
 @using Microsoft.AspNetCore.SignalR.Client
 @using TicTacToe.Shared.Data
+@using TicTacToe.Client.Models.Enums;
 @inject NavigationManager Navigation
 @implements IAsyncDisposable
 @inject IJSRuntime _jsRuntime;
@@ -13,7 +14,7 @@
 </div>
 
 <section>
-    <div class="register-form" hidden="@(IsInGame)">
+    <div class="register-form" hidden="@(!showRegisterForm)">
         <label>
             Room number:
             <input @bind="roomNumber" />
@@ -33,7 +34,7 @@
 <hr>
 
 <section>
-    <div hidden="@(IsInGame)">
+    <div class="create-room-form" hidden="@(!showCreateRoomForm)">
         <label>
             Password:
             <input type="password" @bind="password" />
@@ -46,14 +47,18 @@
     </div>
 </section>
 
-<div hidden="@(!IsInGame)">
+<div hidden="@(!showRoomCredentials)">
     <h2>RoomId: @(roomNumber)</h2>
     <h2>Password: @(password)</h2>
 </div>
 
-<div hidden="@(!IsInGame)">
+<div hidden="@(!showUsername)">
     <h2>Your username: @(username)</h2>
 </div>
+
+<section>
+    <div class="winner-label" hidden="@(!showWinner)">This game was won by @(winnerName)</div>
+</section>
 
 <div hidden="@(!IsInGame)">
     <h2>TABLE FOR GAME HERE</h2>
@@ -62,18 +67,12 @@
     {
         @for (int j = 0; j < 10; j++)
         {
-            <button @onclick="@(() => TapButton(i, j))">@(dashboard[i][j])</button>
+            int k = i;
+            int m = j;
+            <button style="margin: 5px;" @onclick="@(() => TapButton(k, m))">@(dashboard[i][j])</button>
         }
         <br>
     }
-</div>
-
-@* <div hidden="@(GameStatus)">
-   @*  <h2>GameStatusHere</h2>
-</div> *@
-
-<div>
-    @* todo reset game button *@
 </div>
 
 <hr>
@@ -90,6 +89,12 @@
     private List<List<String>> dashboard = new List<List<string>>();
     private string? sign;
     private bool myOrder = false;
+    private bool showRegisterForm = true;
+    private bool showCreateRoomForm = true;
+    private bool showRoomCredentials = false;
+    private bool showUsername = false;
+    private bool showWinner = false;
+    private string winnerName = "";
 
     protected override async Task OnInitializedAsync()
     {
@@ -104,11 +109,19 @@
                 IsFailed = false;
                 IsInGame = true;
                 roomNumber = response.RoomNumber;
+                showRegisterForm = false;
+                showCreateRoomForm = false;
+                showUsername = true;
+                showRoomCredentials = true;
             }
             else
             {
                 IsInGame = false;
                 IsFailed = true;
+                showRegisterForm = true;
+                showCreateRoomForm = true;
+                showUsername = false;
+                showRoomCredentials = false;
             }
             responseMessage = response.Message;
             InvokeAsync(StateHasChanged);
@@ -119,14 +132,21 @@
             if (response.Success is true)
             {
                 IsFailed = false;
-                IsInGame = true;
                 this.roomNumber = response.RoomNumber;
+                showRegisterForm = false;
+                showCreateRoomForm = false;
+                showUsername = true;
+                showRoomCredentials = true;
             }
             else
             {
-                IsInGame = false;
                 IsFailed = true;
+                showRegisterForm = true;
+                showCreateRoomForm = true;
+                showUsername = false;
+                showRoomCredentials = false;
             }
+            IsInGame = false;
             responseMessage = response.Message;
             InvokeAsync(StateHasChanged);
         });
@@ -138,15 +158,24 @@
                IsFailed = false;
                IsInGame = true;
                this.roomNumber = response.RoomNumber;
+               showRegisterForm = true;
+               showCreateRoomForm = true;
+               showUsername = false;
+               showRoomCredentials = false;
            }
            else
            {
                IsInGame = false;
                IsFailed = true;
+               showRegisterForm = false;
+               showCreateRoomForm = false;
+               showUsername = true;
+               showRoomCredentials = true;
            }
-           responseMessage = response.Message;
+           responseMessage = response.Message + "Copy the room number and password. Send them to your friend";
            InvokeAsync(StateHasChanged);
        });
+
 
         hubConnection.On<SignResponse>("UpdateSign", (response) =>
         {
@@ -169,6 +198,19 @@
             }
             this.dashboard.Add(arr);
         }
+        hubConnection.On<WinnerResponse>("WinnerCallback", (response) =>
+        {
+            this.showWinner = true;
+            this.winnerName = response.winnerName == null ? "" : response.winnerName;
+            this.IsInGame = false;
+            this.showUsername = false;
+            this.showRoomCredentials = false;
+            this.showCreateRoomForm = true;
+            this.showRegisterForm = true;
+            this.username = "";
+            this.ResetDashboard();
+            InvokeAsync(StateHasChanged);
+        });
 
         await hubConnection.StartAsync();
     }
@@ -191,6 +233,19 @@
             this.username = username;
         }
     }
+    private void ResetDashboard()
+    {
+        this.dashboard = new List<List<string>>();
+        for (int i = 0; i < 10; i++)
+        {
+            var arr = new List<string>();
+            for (int j = 0; j < 10; j++)
+            {
+                arr.Add("_");
+            }
+            this.dashboard.Add(arr);
+        }
+    }
 
     private async Task TapCallback(int i, int j)
     {
@@ -202,13 +257,25 @@
 
     private async Task TapButton(int i, int j)
     {
+        Console.WriteLine($"{i} {j} {this.dashboard.Count}");
         string value = this.dashboard[i][j];
         if (this.myOrder)
         {
+            Console.WriteLine("Inside my order branch");
             if (value == "_")
             {
-                await hubConnection.SendAsync("TapButton", roomNumber, i, j);
+                Console.WriteLine("Inside _ branch");
                 this.dashboard[i][j] = this.sign;
+                this.myOrder = false;
+                var state = this.CheckGameState();
+                Console.WriteLine("After game check state");
+                if (state != GameState.in_process)
+                {
+                    Console.WriteLine("Inside send async caller.");
+                    await hubConnection.SendAsync("WinnerEndpoint", state, this.roomNumber);
+                }
+                Console.WriteLine("before tap button call");
+                await hubConnection.SendAsync("TapButton", roomNumber, i, j);
                 await InvokeAsync(StateHasChanged);
             }
             else
@@ -220,10 +287,63 @@
         {
             this.responseMessage = $"It's not your order to step";   
         }
-        
+
     }
 
+    public GameState CheckGameState()
+    {
+        var winnerX = new List<string>{ "O","O","O","O","O"};
+        var winnerO = new List<string> { "X", "X", "X", "X", "X" };
+        Console.WriteLine("Horizontal");
+        // check horizontal
+        for (int i = 0; i < 10; i++)
+        {
+            for (int j = 0; j < 5; j++)
+            {
+                var arr = this.dashboard[i].Skip(j).Take(5).ToList();
+                foreach (var item in arr)
+                {
+                    Console.Write(item + " ");    
+                }
+                Console.Write("\n");
+                if (arr == winnerX)
+                {
+                    return GameState.firstWin;
+                }
+                else if (arr == winnerO)
+                {
+                    return GameState.secondWin;    
+                }
 
+            }
+        }
+        Console.WriteLine("Vertical");
+        // check vertical
+        for (int i = 0; i < 5; i++)
+        {
+            for (int j = 0; j < 10; j++)
+            {
+                var arr = new List<string> { this.dashboard[j][i], this.dashboard[j][i + 1], this.dashboard[j][i + 2], this.dashboard[j][i + 3], this.dashboard[j][i + 4] };
+                foreach (var item in arr)
+                {
+                    Console.Write(item + " ");
+                }
+                Console.Write("\n");
+                if (arr == winnerX)
+                {
+                    return GameState.firstWin;
+                }
+                else if (arr == winnerO)
+                {
+                    return GameState.secondWin;
+                }
+
+            }
+        }
+        // check left to right diagonal
+        // check right to left diagonal
+        return GameState.in_process;
+    }
 
     public bool IsConnected =>
         hubConnection?.State == HubConnectionState.Connected;
