@@ -306,11 +306,11 @@
                     Console.Write(item + " ");    
                 }
                 Console.Write("\n");
-                if (arr == winnerX)
+                if (arr.SequenceEqual(winnerX))
                 {
                     return GameState.firstWin;
                 }
-                else if (arr == winnerO)
+                else if (arr.SequenceEqual(winnerO))
                 {
                     return GameState.secondWin;    
                 }
@@ -329,15 +329,14 @@
                     Console.Write(item + " ");
                 }
                 Console.Write("\n");
-                if (arr == winnerX)
+                if (arr.SequenceEqual(winnerX))
                 {
                     return GameState.firstWin;
                 }
-                else if (arr == winnerO)
+                else if (arr.SequenceEqual(winnerO))
                 {
                     return GameState.secondWin;
                 }
-
             }
         }
         // check left to right diagonal
